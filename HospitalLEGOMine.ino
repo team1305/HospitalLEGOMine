@@ -3,12 +3,13 @@
  Adapted from Arduino/examples/Blink without delay
  Subsystems are:
  ELEVATOR - skip elevator - run by a directly-connected SERVO
- SHOP - conveyor and other shop-type equip, controlled by a motor-controller
- BORER - vehicle with tunnel borer drill mechanism - controlled by a motor-controller
- GRINDER - vertical gear below LEGO gal with sword - controlled by a motor-controller
- DumpTruck - Dump truck that moves forwards and dumps - controlled by a motor-controller
- CHAINSAW - LEGO motor with chainsaw-like gears that also raises/lowers - controlled by a motor-controller
- CRANE - runs the crane and ore car
+ SHOP - conveyor and other shop-type equip
+ BORER - vehicle with tunnel borer drill mechanism
+ GRINDER - vertical gear below LEGO gal with sword
+ DUMPTRUCK - Dump truck that moves forwards and dumps
+ CHAINSAW - LEGO motor with chainsaw-like gears that also raises/lowers
+ CRANE - swings the crane
+ RAIL - worm gear that runs ore car
  */
 
 #include <Servo.h>
@@ -16,24 +17,31 @@
 Servo ElevatorServo; // Create Servo object to control the servo
 Servo LEDVictor;
 Servo BorerVictor;
-//Servo ChainSawVictor;
 Servo CraneVictor;
 Servo DumpTruckAndShopVictor;
 Servo ChainsawAndRailVictor;
 
 
-// constants won't change. Used here to 
+// constants won't change. 
 // set pin numbers:
-//const int IO_LED_DIRECT_PIN =  13;      // the number of the LED pin that DOESN't go through the VICTOR
-const int IO_LED_W_VICTOR_PIN =  10; //7;
+const int IO_LED_W_VICTOR_PIN =  10; 
 const int IO_ELEVATOR_PWM_OUT_PIN = 6;
 const int IO_BORER_PIN = 3;
 const int IO_CHAINSAW_PIN = 4;
-const int IO_CRANE_PIN = 11;  //is this crane?
-const int IO_DumpTruck_AND_SHOP_PIN = 9;
+const int IO_CRANE_PIN = 11;  
+const int IO_DUMPTRUCK_AND_SHOP_PIN = 9;
 const int IO_CHAINSAW_AND_RAIL_PIN = 5;
 const int IO_COIN_SLOT_PIN = 13;
 const int IO_SONG_PIN = 7;
+
+//most motors cannot go at 100% of 5 volts.  These vars "scale" them
+const float LED_VICTOR_PERCENT = 1.0;
+const float SHOP_SPEED_PERCENT = 1.0;
+const float BORER_SPEED_PERCENT = 0.25;
+const float CHAINSAW_SPEED_PERCENT = 0.25;
+const float CRANE_SPEED_PERCENT = 0.15;
+const float DUMPTRUCK_AND_SHOP_SPEED_PERCENT = 0.5;
+const float CHAINSAW_AND_RAIL_SPEED_PERCENT = 0.4;
 
 const int VICTOR_MAX_SIGNAL = 2000;
 const int VICTOR_MIN_SIGNAL = 1000;
@@ -44,38 +52,31 @@ const int MOTOR_DIRECTION_FORWARD = 1;
 const int MOTOR_DIRECTION_REVERSE = -1;
 const int MOTOR_DIRECTION_NEUTRAL = 0;
 
-const float LED_VICTOR_PERCENT = 1.0;
-const float SHOP_SPEED_PERCENT = 1.0;
-const float BORER_SPEED_PERCENT = 0.25;
-const float CHAINSAW_SPEED_PERCENT = 0.25;
-const float CRANE_SPEED_PERCENT = 0.15;
-const float DumpTruck_AND_SHOP_SPEED_PERCENT = 0.5;
-const float CHAINSAW_AND_RAIL_SPEED_PERCENT = 0.4;
-
 const unsigned int SERVO_MIN_POS = 0;
 const unsigned int SERVO_MAX_POS = 3000;
 
-const unsigned int LED_INTERVAL = 1000;           // interval at which to blink (milliseconds)
 const unsigned int ELEVATOR_LIFT_DUR_MS= 4000;           // interval at which to reset servo to min pos (milliseconds)
 const unsigned int CHAINSAW_AND_RAIL_CYCLE_DUR_MS = 20000; //cycle before rail car reverses direction
 const unsigned int CRANE_CYCLE_DUR_MS = 2500;
   
 const float ELEVATOR_TURN_PER_MS = (((float)SERVO_MAX_POS - (float)SERVO_MIN_POS)/(float)ELEVATOR_LIFT_DUR_MS);
 const unsigned int TURN_DURATION_MILLISEC = 30000;
+const int COIN_READ_DELAY_MS = 50;
+const int COIN_DROP_DETECT_VALUE = 1;
 
 const int P=0, c = 261, d = 294, e = 329, f = 349, fS = 372, g = 391, gS = 415, a = 440, aS = 455, bF = 466, b = 493, cH = 523, cSH = 554, 
           dH = 587, dSH = 622, eH = 659, fH = 698, fSH = 740, gH = 784, gSH = 830, aH = 880, i=466,  N=740,  R=622,  u=415,  l=1046,  L=622,  k=227;
 
-int marioBeats[293] ={ 
+const int marioBeats[293] ={ 
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, //Page 1
     2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 2, 4, //Page 2
     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 4, 4, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, //Page4
     1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, //Page 5
     1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1.3, 1.3, 1.3, 1.3, 1.3, 1.3, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1.3, 1.3, 1.3, 1, 1, 1, 1, 1, 1, 2   }; //Page 6
-int marioTune[294] =  {
+const int marioTune[294] =  {
     eH,eH,P,eH,P,cH,eH,P,gH,P,P,g,P,P,cH,P,P,g,P,e,P,P,a,P,b,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,cH,P,P,g,P,e,P,P,a,P,bF,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,P,gH,N,fH,R,P,eH,P,u,a,cH,P,a,cH,dH,P,gH,N,fH,R,P,eH,P,l,P,l,l,P,P,P,gH,N,fH,R,P,eH,P,u,a,cH,P,a,cH,dH,P,L,P,P,dH,P,cH,P,P,P,cH,cH,P,cH,P,cH,dH,P,eH,cH,P,a,g,P,P,cH,cH,P,cH,P,cH,dH,eH,P,P,cH,cH,P,cH,P,cH,dH,P,eH,cH,P,a,g,P,P,eH,eH,P,eH,P,cH,eH,P,gH,P,P,g,P,P,cH,P,P,g,P,e,P,P,a,P,bF,bF,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,cH,P,P,g,P,e,P,P,a,P,bF,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,eH,cH,P,g,P,u,P,a,fH,P,fH,a,P,P,bF,aH,aH,aH,gH,fH,eH,cH,P,a,g,P,P,eH,cH,P,g,P,u,P,a,fH,P,fH,a,P,P,bF,fH,P,fH,fH,eH,dH,cH,e,P,e,c,P,P  };
 
-int Starwars[80][2] =   {
+const int Starwars[80][2] =   {
   {a, 500}, {a, 500}, {a, 500}, {f, 350}, {cH, 150}, {a, 500}, {f, 350}, {cH, 150}, {a, 650}, {P, 500}, 
    {eH, 500}, {eH, 500}, {eH, 500}, {fH, 350}, {cH, 150}, {gS, 500}, {f, 350}, {cH, 150}, {a, 650}, {P, 500}, 
    {aH, 500}, {a, 300}, {a, 150}, {aH, 500}, {gSH, 325}, {gH, 175}, {fSH, 125}, {fH, 125}, {fSH, 250}, {P, 325}, 
@@ -87,32 +88,22 @@ int Starwars[80][2] =   {
   //Variant 2
   {f, 250}, {gS, 500}, {f, 375}, {cH, 125}, {a, 500}, {f, 375}, {cH, 125}, {a, 650}, {P, 650}  };
 
-int Chaingang[][2] = {
+const int Chaingang[][2] = {
         {0, 250}, {e, 500}, {d, 250}, {e, 500}, {e, 250}, {c, 250}, {c, 500}, {0, 500}, {c, 250}, {d, 250}, {c, 250}, {d, 250},
         {e, 500}, {0, 1500}, {e, 500}, {g, 250}, {e, 500}, {0, 500}, 
         {0, 250}, {e, 500}, {d, 250}, {e, 500}, {e, 250}, {c, 250}, {c, 500}, {0, 500}, {c, 250}, {d, 250}, {c, 250}, {d, 250},
         {e, 500}, {0, 1500}, {c, 500}, {0, 1500}};
 
-int HiHo[][2] = {
+const int HiHo[][2] = {
 //  {d, 500}, {dH, 1500}, {0, 2000}, {d, 500}, {dH, 1500}, {0, 2000}, 
   {d, 250}, {g, 750}, {fS, 250}, {e, 750}, {g, 250}, {a, 350}, {b, 150}, {a, 250}, {g, 250}, {fS, 500}, 
   {d, 250}, {e, 250}, {g, 250}, {d, 250}, {d, 250}, {e, 250}, {fS, 250}, {g, 250}, {cH, 250}, {b, 750}, {g, 250}, {a, 250}, {d, 250}, {e, 250}, {fS, 250}, {g, 750}, 
    {fS, 250}, {e, 750}, {g, 250}, {a, 350}, {b, 150}, {a, 250}, {g, 250}, {fS, 500}, 
   {d, 250}, {e, 250}, {g, 250}, {d, 250}, {d, 250}, {e, 250}, {fS, 250}, {g, 250}, {cH, 250}, {b, 750}, {a, 250}, {g, 750}}; 
 
-int SixteenTons [][2] = {
-  {e, 250}, {g, 62.5}, {e, 62.5}, {g, 62.5}, {g, 185}, {P, 250}, {e, 250}, {b, 250}, 
-  {e, 62.5}, {e, 62.5}, {e, 62.5}, {b, 62.5}, {e, 62.5}, 
-{b, 125}, {g, 250}, {e, 250}, {e, 250}, {b, 125}, {b, 125}, {e, 125}, {e, 125}, 
-{e, 250}, {b, 250}, 
-{e, 125}, {e, 125}, {e, 250}, {e, 250}, {e, 250}, {cH, 250}, {cH, 250}, {cH, 250}, 
-{bF, 250}, {a, 125}, {g, 125}, {e, 250}, {b, 125}, {b, 125}, 
-{e, 250}, {e, 250}, {b, 125}, {b, 125}, {cSH, 250}, {e, 250}, {e, 250}, {g, 62.5}, 
-{g, 62.5}, {g, 62.5}, {e, 62.5}, {e, 62.5} };
+const int Scale[][2] = { {c,200}, {d,200}, {e,200}, {f,200}, {g,200}, {a,200}, {b,200}, {cH,200}, {dH,200}, {eH,200}, {fH,200}, {gH,200}};
 
-int Scale[][2] = { {c,200}, {d,200}, {e,200}, {f,200}, {g,200}, {a,200}, {b,200}, {cH,200}, {dH,200}, {eH,200}, {fH,200}, {gH,200}};
-
-// Variables will change:
+// Variables that will change are below:
 int CurrentLEDState = LOW;             // LEDState used to set the LED
 long LEDChangeStartMillis = 0;        // will store last time LED was updated
 long ElevatorChangeStartMillis = 0; //last time servo rotation cycle was restarted
@@ -121,18 +112,17 @@ int CurrentRailDirection = MOTOR_DIRECTION_FORWARD;
 int CurrentCraneDirection = MOTOR_DIRECTION_FORWARD;
 long CraneChangeStartMillis = 0;
 
-const int COIN_READ_DELAY_MS = 50;
+
 int CoinSlotReading;
-const int COIN_DROP_DETECT_VALUE = 1;
 boolean TurnHasEnded = true;
 
-// the following three variables is a long because the time, measured in miliseconds,
+// the following three variables are a long because the time, measured in miliseconds,
 // will quickly become a bigger number than can be stored in an int.
 unsigned long MaxMillisecThisTurn = 0;  //timer to correct for built-in millis() fcn resetting every 50 days;
 unsigned long CurrentMillisecReading = millis();
 unsigned long TurnStartTime;
-int CurrentNote = 0;
 
+int CurrentNoteCounter = 0;
 int CraneStartNote = 30;
 int CraneEndNote = 45;
 int ElevatorStartNote = 15;
@@ -146,22 +136,17 @@ int BorerEndNote = 90;
 
 
 void setup() {
-  ElevatorServo.attach(IO_ELEVATOR_PWM_OUT_PIN); // Servo is connected to digital pin 9
+  ElevatorServo.attach(IO_ELEVATOR_PWM_OUT_PIN); 
   LEDVictor.attach(IO_LED_W_VICTOR_PIN);
   BorerVictor.attach(IO_BORER_PIN);
-  //ChainSawVictor.attach(IO_CHAINSAW_PIN);
   CraneVictor.attach(IO_CRANE_PIN);
-  DumpTruckAndShopVictor.attach(IO_DumpTruck_AND_SHOP_PIN);
+  DumpTruckAndShopVictor.attach(IO_DUMPTRUCK_AND_SHOP_PIN);
   ChainsawAndRailVictor.attach(IO_CHAINSAW_AND_RAIL_PIN);
   pinMode(IO_COIN_SLOT_PIN,INPUT);
 
   Serial.begin(9600);
   Serial.println("Starting");
 
-  // set the digital pin as output:
-  //direct LED is likely no longer needed!
-//  pinMode(IO_LED_DIRECT_PIN, OUTPUT);      
-  //Serial.println(ELEVATOR_TURN_PER_MS);
 }
 
 void loop()
@@ -191,12 +176,9 @@ void loop()
       //Serial.println("Running");
       //Serial.println(CurrentMillisecReading - TurnStartTime);
       if (CurrentMillisecReading - TurnStartTime < TURN_DURATION_MILLISEC)
-//      if (CurrentNote < 80)
       {
-//        RunVictorLED();
         SetElevatorPosition();
         RunBorer();
-        //xxRunChainsaw();
         RunCrane();
         RunDumpTruckAndShop();
         RunChainsawAndRail();
@@ -219,37 +201,36 @@ void StopAll()
   LEDVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
 
 }
+
 void PlayNote()
 {
-  
-//       Serial.println(CurrentNote);  
-  //if (CurrentNote < 12) //scale
-//  if (CurrentNote < 34) //chaingang
-  if (CurrentNote < 75) //starwars = 75
-  //  if (CurrentNote < 46) //Hi HO
+       Serial.println(CurrentNoteCounter);  
+  //if (CurrentNoteCounter < 12) //scale
+  //if (CurrentNoteCounter < 34) //chaingang
+  if (CurrentNoteCounter < 75) //starwars = 75
+  //if (CurrentNoteCounter < 46) //Hi HO
   {
-       int NoteToPlay = Starwars[CurrentNote][0];
-      int NoteLength = Starwars[CurrentNote][ 1];
-//      int NoteToPlay = Chaingang[CurrentNote][0];
-//      int NoteLength = Chaingang[CurrentNote][ 1];
+      int NoteToPlay = Starwars[CurrentNoteCounter][0];
+      int NoteLength = Starwars[CurrentNoteCounter][ 1];
+//      int NoteToPlay = Chaingang[CurrentNoteCounter][0];
+//      int NoteLength = Chaingang[CurrentNoteCounter][ 1];
       
-//      int NoteToPlay = HiHo[CurrentNote][0];
-//      int NoteLength = HiHo[CurrentNote][ 1];
+//      int NoteToPlay = HiHo[CurrentNoteCounter][0];
+//      int NoteLength = HiHo[CurrentNoteCounter][ 1];
 
-//      int NoteToPlay = SixteenTons[CurrentNote][0];
-//      int NoteLength = SixteenTons[CurrentNote][ 1] * 4;
+//      int NoteToPlay = SixteenTons[CurrentNoteCounter][0];
+//      int NoteLength = SixteenTons[CurrentNoteCounter][ 1] * 4;
       
-//       int NoteToPlay = Scale[CurrentNote][0];
-//      int NoteLength = Scale[CurrentNote][ 1] * 4;
+//       int NoteToPlay = Scale[CurrentNoteCounter][0];
+//      int NoteLength = Scale[CurrentNoteCounter][ 1] * 4;
 
       Serial.println(NoteLength); 
       Serial.println(NoteToPlay); 
      
-     //tone(IO_SONG_PIN,marioTune[CurrentNote],120);
-     tone(IO_SONG_PIN, NoteToPlay, NoteLength);
- //Play different LED depending on value of 'counter'
+      tone(IO_SONG_PIN, NoteToPlay, NoteLength);
+     //Play LED full or partial depending on Current note counter
      
-      if(CurrentNote % 2 == 0)
+      if(CurrentNoteCounter % 2 == 0)
       {
          LEDVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, LED_VICTOR_PERCENT));
       }else
@@ -257,51 +238,17 @@ void PlayNote()
           LEDVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, LED_VICTOR_PERCENT * 0.4));
       }
       delay(NoteLength); 
-      CurrentNote = CurrentNote + 1;
+      CurrentNoteCounter = CurrentNoteCounter + 1;
    }
   else
   {
      noTone(IO_SONG_PIN);  
-        Serial.println("done"); 
-        delay(1000);
-        CurrentNote = 1;
-        TurnHasEnded = true;
+     Serial.println("done"); 
+     delay(1000);
+     CurrentNoteCounter = 1;
+     TurnHasEnded = true;
   }
 }
-
-void   RunVictorLED()
-{
-  ///tbd...  int currentMillis = MillisecCounter();
-  //unsigned long currentMillis = millis();
-
-    if (CurrentMillisecReading < LEDChangeStartMillis)
-    {
-    // new turn - reset change timer
-          LEDChangeStartMillis = CurrentMillisecReading;
-    }
- 
-  if(CurrentMillisecReading  - LEDChangeStartMillis > LED_INTERVAL) {
-    // save the last time you blinked the LED 
-    LEDChangeStartMillis = CurrentMillisecReading;   
-
-    // if the LED is off turn it on and vice-versa:
-    if (CurrentLEDState == LOW)
-    {
-      CurrentLEDState = HIGH;
-      LEDVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, LED_VICTOR_PERCENT));
-    }
-    else
-    {
-      CurrentLEDState = LOW;
-      LEDVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, LED_VICTOR_PERCENT * 0.4));
-    }
-  }
-}
-
-//void DropCoin()
-//{
-//  TurnStartTime = millis();
-//}
 
 int MillisecCounter()
 {
@@ -312,7 +259,7 @@ int MillisecCounter()
   // All other routines should call this to determine how man
   // milliseconds we are in to a turn.
   
-  //CurrentMillisecReading = millis();
+  CurrentMillisecReading = millis();
   if (CurrentMillisecReading > MaxMillisecThisTurn)
   {
     MaxMillisecThisTurn = CurrentMillisecReading ;
@@ -328,86 +275,70 @@ int CalcVictor(int Motor_Direction, float PercentPower)
 {
   int motorVoltageCalc; 
   motorVoltageCalc = VICTOR_NEUTRAL_SIGNAL + (Motor_Direction * VICTOR_ABS_SPEED * PercentPower);
-  //Serial.println( motorVoltageCalc);
   return motorVoltageCalc; 
-
 }
 
 void RunChainsawAndRail(){
-    //  unsigned long currentMillis = millis();
-//tbd...    int currentMillis = MillisecCounter();
-  if (CurrentNote < ChainsawAndRailStartNote | CurrentNote > ChainsawAndRailEndNote)
-{
-  ChainsawAndRailVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
-  return;
-}
+  if (CurrentNoteCounter < ChainsawAndRailStartNote | CurrentNoteCounter > ChainsawAndRailEndNote)
+  {
+    ChainsawAndRailVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
+    return;
+  }
 
-    if (CurrentMillisecReading < ChainsawAndRailChangeStartMillis)
-    {
+  if (CurrentMillisecReading < ChainsawAndRailChangeStartMillis)
+  {
     // new turn - reset change timer
-          ChainsawAndRailChangeStartMillis = CurrentMillisecReading;
-//    int millisecInThisDirection = CurrentMillisecReading - ChainsawAndRailChangeStartMillis;
-    }
+     ChainsawAndRailChangeStartMillis = CurrentMillisecReading;
+  }
     
-  if(CurrentMillisecReading - ChainsawAndRailChangeStartMillis > CHAINSAW_AND_RAIL_CYCLE_DUR_MS) {
+  if(CurrentMillisecReading - ChainsawAndRailChangeStartMillis > CHAINSAW_AND_RAIL_CYCLE_DUR_MS) 
+  {
     // save the last time you reset the server to min pos 
     ChainsawAndRailChangeStartMillis = CurrentMillisecReading; 
-    //millisecInThisDirection = 0;
     if (CurrentRailDirection == MOTOR_DIRECTION_FORWARD)
     {
       CurrentRailDirection = MOTOR_DIRECTION_REVERSE;
-//      Serial.println(1);
     }
     else
     {
       CurrentRailDirection = MOTOR_DIRECTION_FORWARD;
-//      Serial.println(0);
     }
-  }
-  
+  }  
     ChainsawAndRailVictor.writeMicroseconds(CalcVictor(CurrentRailDirection, CHAINSAW_AND_RAIL_SPEED_PERCENT));
 }
 
 void RunBorer(){
-  if (CurrentNote < BorerStartNote | CurrentNote > BorerEndNote)
-{
-  BorerVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
-  return;
-}
-    BorerVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, BORER_SPEED_PERCENT));
-    
+  if (CurrentNoteCounter < BorerStartNote | CurrentNoteCounter > BorerEndNote)
+  {
+    BorerVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
+    return;
+  }
+  BorerVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, BORER_SPEED_PERCENT));  
 }
 
 void RunCrane(){
-//        unsigned long currentMillis = millis();
-//tbd...    int currentMillis = MillisecCounter();
-if (CurrentNote < CraneStartNote | CurrentNote > CraneEndNote)
-{
-  CraneVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
-  return;
-}
-    if (CurrentMillisecReading < CraneChangeStartMillis)
-    {
+  if (CurrentNoteCounter < CraneStartNote | CurrentNoteCounter > CraneEndNote)
+  {
+    CraneVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
+    return;
+  }
+  
+  if (CurrentMillisecReading < CraneChangeStartMillis)
+  {
     // new turn - reset change timer
-          CraneChangeStartMillis = CurrentMillisecReading;
-    }
-
-//    int millisecInThisDirection = CurrentMillisecReading  - CraneChangeStartMillis;
-
-    
+      CraneChangeStartMillis = CurrentMillisecReading;
+  }
+  
   if(CurrentMillisecReading  - CraneChangeStartMillis > CRANE_CYCLE_DUR_MS) {
     // save the last time you reset the server to min pos 
     CraneChangeStartMillis = CurrentMillisecReading; 
-//    millisecInThisDirection = 0;
     if (CurrentCraneDirection == MOTOR_DIRECTION_FORWARD)
     {
       CurrentCraneDirection = MOTOR_DIRECTION_REVERSE;
-//      Serial.println(1);
     }
     else
     {
       CurrentCraneDirection = MOTOR_DIRECTION_FORWARD;
-//      Serial.println(0);
     }
   }
   float speedMultiplier;
@@ -419,46 +350,40 @@ if (CurrentNote < CraneStartNote | CurrentNote > CraneEndNote)
   {
     speedMultiplier = 0.8;
   }
-  //Serial.println(CalcVictor(CurrentCraneDirection, CRANE_SPEED_PERCENT * speedMultiplier ));
-    CraneVictor.writeMicroseconds(CalcVictor(CurrentCraneDirection, CRANE_SPEED_PERCENT * speedMultiplier));
+  CraneVictor.writeMicroseconds(CalcVictor(CurrentCraneDirection, CRANE_SPEED_PERCENT * speedMultiplier));
 }
 
 void RunDumpTruckAndShop(){
-  if (CurrentNote < DumpTruckAndShopStartNote | CurrentNote > DumpTruckAndShopEndNote)
-{
-  DumpTruckAndShopVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
-  return;
-}
-    DumpTruckAndShopVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, DumpTruck_AND_SHOP_SPEED_PERCENT));
+  if (CurrentNoteCounter < DumpTruckAndShopStartNote | CurrentNoteCounter > DumpTruckAndShopEndNote)
+  {
+    DumpTruckAndShopVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
+    return;
+  }
+  
+  DumpTruckAndShopVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, DUMPTRUCK_AND_SHOP_SPEED_PERCENT));
 }
   
 void SetElevatorPosition()
 {
-   if (CurrentNote < ElevatorStartNote | CurrentNote > ElevatorEndNote)
-{
-  ElevatorServo.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
-  return;
-}
+   if (CurrentNoteCounter < ElevatorStartNote | CurrentNoteCounter > ElevatorEndNote)
+   {
+     ElevatorServo.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
+     return;
+   }
   
-  //  unsigned long currentMillis = millis();
-//tbd...    int currentMillis = MillisecCounter();
-    if (CurrentMillisecReading < ElevatorChangeStartMillis)
-    {
+  if (CurrentMillisecReading < ElevatorChangeStartMillis)
+  {
     // new turn - reset change timer
-          ElevatorChangeStartMillis = CurrentMillisecReading;
-    }
+    ElevatorChangeStartMillis = CurrentMillisecReading;
+  }
 
-
-    int millisecInThisDirection = CurrentMillisecReading - ElevatorChangeStartMillis;
-  
-  if(millisecInThisDirection > ELEVATOR_LIFT_DUR_MS) {
+  int millisecInThisDirection = CurrentMillisecReading - ElevatorChangeStartMillis;
+  if(millisecInThisDirection > ELEVATOR_LIFT_DUR_MS) 
+  {
     // save the last time you reset the server to min pos 
     ElevatorChangeStartMillis = CurrentMillisecReading; 
- //    = 0;
   }
+    
   long ElevatorPos = SERVO_MIN_POS + (millisecInThisDirection * ELEVATOR_TURN_PER_MS);
-  //Serial.println(ElevatorPos);
-  //Serial.println(currentMillis);
   ElevatorServo.writeMicroseconds(ElevatorPos);
 }
-
