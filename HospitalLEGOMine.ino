@@ -61,7 +61,7 @@ const unsigned int CRANE_CYCLE_DUR_MS = 2500;
   
 const float ELEVATOR_TURN_PER_MS = (((float)SERVO_MAX_POS - (float)SERVO_MIN_POS)/(float)ELEVATOR_LIFT_DUR_MS);
 const unsigned int TURN_DURATION_MILLISEC = 30000;
-const int COIN_READ_DELAY_MS = 50;
+const int COIN_READ_DELAY_MS = 5;
 const int COIN_DROP_DETECT_VALUE = 1;
 
 const int P=0, c = 261, d = 294, e = 329, f = 349, fS = 372, g = 391, gS = 415, a = 440, aS = 455, bF = 466, b = 493, cH = 523, cSH = 554, 
@@ -76,6 +76,8 @@ const int marioBeats[293] ={
 const int marioTune[294] =  {
     eH,eH,P,eH,P,cH,eH,P,gH,P,P,g,P,P,cH,P,P,g,P,e,P,P,a,P,b,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,cH,P,P,g,P,e,P,P,a,P,bF,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,P,gH,N,fH,R,P,eH,P,u,a,cH,P,a,cH,dH,P,gH,N,fH,R,P,eH,P,l,P,l,l,P,P,P,gH,N,fH,R,P,eH,P,u,a,cH,P,a,cH,dH,P,L,P,P,dH,P,cH,P,P,P,cH,cH,P,cH,P,cH,dH,P,eH,cH,P,a,g,P,P,cH,cH,P,cH,P,cH,dH,eH,P,P,cH,cH,P,cH,P,cH,dH,P,eH,cH,P,a,g,P,P,eH,eH,P,eH,P,cH,eH,P,gH,P,P,g,P,P,cH,P,P,g,P,e,P,P,a,P,bF,bF,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,cH,P,P,g,P,e,P,P,a,P,bF,P,i,a,P,g,eH,gH,aH,P,fH,gH,P,eH,P,cH,dH,bF,P,eH,cH,P,g,P,u,P,a,fH,P,fH,a,P,P,bF,aH,aH,aH,gH,fH,eH,cH,P,a,g,P,P,eH,cH,P,g,P,u,P,a,fH,P,fH,a,P,P,bF,fH,P,fH,fH,eH,dH,cH,e,P,e,c,P,P  };
 
+const String STARWARS_SONG = "Starwars Song";
+
 const int Starwars[80][2] =   {
   {a, 500}, {a, 500}, {a, 500}, {f, 350}, {cH, 150}, {a, 500}, {f, 350}, {cH, 150}, {a, 650}, {P, 500}, 
    {eH, 500}, {eH, 500}, {eH, 500}, {fH, 350}, {cH, 150}, {gS, 500}, {f, 350}, {cH, 150}, {a, 650}, {P, 500}, 
@@ -88,14 +90,17 @@ const int Starwars[80][2] =   {
   //Variant 2
   {f, 250}, {gS, 500}, {f, 375}, {cH, 125}, {a, 500}, {f, 375}, {cH, 125}, {a, 650}, {P, 650}  };
 
+const String CHAINGANG_SONG = "Chaingang Song";
 const int Chaingang[][2] = {
         {0, 250}, {e, 500}, {d, 250}, {e, 500}, {e, 250}, {c, 250}, {c, 500}, {0, 500}, {c, 250}, {d, 250}, {c, 250}, {d, 250},
         {e, 500}, {0, 1500}, {e, 500}, {g, 250}, {e, 500}, {0, 500}, 
         {0, 250}, {e, 500}, {d, 250}, {e, 500}, {e, 250}, {c, 250}, {c, 500}, {0, 500}, {c, 250}, {d, 250}, {c, 250}, {d, 250},
         {e, 500}, {0, 1500}, {c, 500}, {0, 1500}};
 
+const String HIHO_SONG = "Hi Ho Song";
+
 const int HiHo[][2] = {
-//  {d, 500}, {dH, 1500}, {0, 2000}, {d, 500}, {dH, 1500}, {0, 2000}, 
+  {d, 500}, {dH, 1500}, {0, 2000}, {d, 500}, {dH, 1500}, {0, 2000}, 
   {d, 250}, {g, 750}, {fS, 250}, {e, 750}, {g, 250}, {a, 350}, {b, 150}, {a, 250}, {g, 250}, {fS, 500}, 
   {d, 250}, {e, 250}, {g, 250}, {d, 250}, {d, 250}, {e, 250}, {fS, 250}, {g, 250}, {cH, 250}, {b, 750}, {g, 250}, {a, 250}, {d, 250}, {e, 250}, {fS, 250}, {g, 750}, 
    {fS, 250}, {e, 750}, {g, 250}, {a, 350}, {b, 150}, {a, 250}, {g, 250}, {fS, 500}, 
@@ -115,6 +120,7 @@ long CraneChangeStartMillis = 0;
 
 int CoinSlotReading;
 boolean TurnHasEnded = true;
+boolean CoinDropHasStarted = false;
 
 // the following three variables are a long because the time, measured in miliseconds,
 // will quickly become a bigger number than can be stored in an int.
@@ -123,17 +129,20 @@ unsigned long CurrentMillisecReading = millis();
 unsigned long TurnStartTime;
 
 int CurrentNoteCounter = 0;
-int CraneStartNote = 30;
-int CraneEndNote = 45;
-int ElevatorStartNote = 15;
-int ElevatorEndNote = 30;
-int DumpTruckAndShopStartNote = 10;
-int DumpTruckAndShopEndNote = 15;
-int ChainsawAndRailStartNote = 45;
-int ChainsawAndRailEndNote = 60;
-int BorerStartNote = 60;
-int BorerEndNote = 90;
+String CurrentSong;
+int EndNoteCounter;
 
+int CraneStartNote;
+int CraneEndNote;
+int ElevatorStartNote;
+int ElevatorEndNote;
+int DumpTruckAndShopStartNote;
+int DumpTruckAndShopEndNote;
+int ChainsawAndRailStartNote;
+int ChainsawAndRailEndNote;
+int BorerStartNote;
+int BorerEndNote;
+int SongRepeatCountdown;
 
 void setup() {
   ElevatorServo.attach(IO_ELEVATOR_PWM_OUT_PIN); 
@@ -142,6 +151,7 @@ void setup() {
   CraneVictor.attach(IO_CRANE_PIN);
   DumpTruckAndShopVictor.attach(IO_DUMPTRUCK_AND_SHOP_PIN);
   ChainsawAndRailVictor.attach(IO_CHAINSAW_AND_RAIL_PIN);
+  CurrentSong = CHAINGANG_SONG;
   pinMode(IO_COIN_SLOT_PIN,INPUT);
 
   Serial.begin(9600);
@@ -161,13 +171,26 @@ void loop()
       StopAll();
       CoinSlotReading = digitalRead(IO_COIN_SLOT_PIN);
       delay(COIN_READ_DELAY_MS);
-      Serial.println(CoinSlotReading);
+      //Serial.println(CoinDropHasStarted);
       Serial.println("Sleeping");
       if (CoinSlotReading == COIN_DROP_DETECT_VALUE)
       {
-          Serial.println("Turn is starting");
+          Serial.println("Detected Coin Drop Start");
+          CoinDropHasStarted = true;
+          Serial.println(CoinSlotReading);
+      }
+      else if (CoinDropHasStarted)
+      {
+        Serial.println("Waiting for Coin Drop End");
+        if (CoinSlotReading != COIN_DROP_DETECT_VALUE)
+        {
+          Serial.println(CoinSlotReading);
+          Serial.println("Detected Coin Drop End");
+          CoinDropHasStarted = false;
+          SetSong();
           TurnStartTime = millis();
           TurnHasEnded = false;
+        }
       }
     }
     else
@@ -175,20 +198,89 @@ void loop()
       CurrentMillisecReading = millis();
       //Serial.println("Running");
       //Serial.println(CurrentMillisecReading - TurnStartTime);
-      if (CurrentMillisecReading - TurnStartTime < TURN_DURATION_MILLISEC)
-      {
+      //if (CurrentMillisecReading - TurnStartTime < TURN_DURATION_MILLISEC)
+      //{
         SetElevatorPosition();
         RunBorer();
         RunCrane();
         RunDumpTruckAndShop();
         RunChainsawAndRail();
-        PlayNote();
-      }
-      else
-      {
-        TurnHasEnded = true;
-      }
+        PlayNoteSmarter();
+      //}
+      //else
+      //{
+      //  TurnHasEnded = true;
+      //}
     }
+}
+
+void SetSong()
+{
+  CurrentNoteCounter = 0;
+  if (CurrentSong == STARWARS_SONG)
+  {
+     Serial.println("gonna play ChainGang"); 
+    CurrentSong = CHAINGANG_SONG;
+  }
+  else if (CurrentSong == CHAINGANG_SONG)
+  {
+    CurrentSong = HIHO_SONG;
+    Serial.println("gonna play Hi Ho"); 
+  }
+  else 
+  {
+    CurrentSong = STARWARS_SONG;
+    Serial.println("gonna play Starwars"); 
+  }
+  
+  if (CurrentSong == STARWARS_SONG)
+  {
+       EndNoteCounter = 75;
+       SongRepeatCountdown = 1;
+       DumpTruckAndShopStartNote = 0;
+       DumpTruckAndShopEndNote = 15;
+       CraneStartNote = 30;
+       CraneEndNote = 45;
+       ElevatorStartNote = 15;
+       ElevatorEndNote = 35;
+       ChainsawAndRailStartNote = 45;
+       ChainsawAndRailEndNote = 60;
+       BorerStartNote = 60;
+       BorerEndNote = 90;
+  }
+  else if (CurrentSong == CHAINGANG_SONG)
+  {
+       EndNoteCounter = 34;
+       SongRepeatCountdown = 2;
+       
+       DumpTruckAndShopStartNote = 0;
+       DumpTruckAndShopEndNote = 15;
+       CraneStartNote = 30;
+       CraneEndNote = 45;
+       ElevatorStartNote = 15;
+       ElevatorEndNote = 30;
+       ChainsawAndRailStartNote = ElevatorStartNote;
+       ChainsawAndRailEndNote = ElevatorEndNote;
+       BorerStartNote = CraneStartNote;
+       BorerEndNote = CraneEndNote;
+
+  }
+  else if (CurrentSong == HIHO_SONG)
+  {
+       EndNoteCounter = 52; //46;
+       SongRepeatCountdown = 2;
+       
+       DumpTruckAndShopStartNote = 7;
+       DumpTruckAndShopEndNote = 30;
+       CraneStartNote = 0;
+       CraneEndNote = 20;
+       ElevatorStartNote = 30;
+       ElevatorEndNote = 52;
+       ChainsawAndRailStartNote = DumpTruckAndShopStartNote;
+       ChainsawAndRailEndNote = DumpTruckAndShopEndNote;
+       BorerStartNote = ElevatorStartNote;
+       BorerEndNote = ElevatorEndNote;
+  }
 }
 
 void StopAll()
@@ -202,30 +294,46 @@ void StopAll()
 
 }
 
-void PlayNote()
+void PlayNoteSmarter()
 {
-       Serial.println(CurrentNoteCounter);  
-  //if (CurrentNoteCounter < 12) //scale
-  //if (CurrentNoteCounter < 34) //chaingang
-  if (CurrentNoteCounter < 75) //starwars = 75
-  //if (CurrentNoteCounter < 46) //Hi HO
+  int NoteToPlay, NoteLength;
+
+  //Serial.println(CurrentNoteCounter);    
+  if (CurrentNoteCounter >= EndNoteCounter) 
   {
-      int NoteToPlay = Starwars[CurrentNoteCounter][0];
-      int NoteLength = Starwars[CurrentNoteCounter][ 1];
-//      int NoteToPlay = Chaingang[CurrentNoteCounter][0];
-//      int NoteLength = Chaingang[CurrentNoteCounter][ 1];
-      
-//      int NoteToPlay = HiHo[CurrentNoteCounter][0];
-//      int NoteLength = HiHo[CurrentNoteCounter][ 1];
-
-//      int NoteToPlay = SixteenTons[CurrentNoteCounter][0];
-//      int NoteLength = SixteenTons[CurrentNoteCounter][ 1] * 4;
-      
-//       int NoteToPlay = Scale[CurrentNoteCounter][0];
-//      int NoteLength = Scale[CurrentNoteCounter][ 1] * 4;
-
-      Serial.println(NoteLength); 
-      Serial.println(NoteToPlay); 
+    if (SongRepeatCountdown > 1)
+    {
+      SongRepeatCountdown = SongRepeatCountdown - 1;
+      CurrentNoteCounter = 0;
+    }
+    else
+    {
+       noTone(IO_SONG_PIN);  
+       Serial.println("done"); 
+       delay(1000);
+       CurrentNoteCounter = 0;
+       TurnHasEnded = true;
+    }
+  }
+  else
+  {
+    if (CurrentSong == STARWARS_SONG)
+    {
+         NoteToPlay = Starwars[CurrentNoteCounter][0];
+         NoteLength = Starwars[CurrentNoteCounter][ 1];
+    }
+    else if (CurrentSong == CHAINGANG_SONG)
+    {
+         NoteToPlay = Chaingang[CurrentNoteCounter][0];
+         NoteLength = Chaingang[CurrentNoteCounter][ 1];
+    }
+    else if (CurrentSong == HIHO_SONG)
+    {
+         NoteToPlay = HiHo[CurrentNoteCounter][0];
+         NoteLength = HiHo[CurrentNoteCounter][ 1];
+    }
+      //Serial.println(NoteLength); 
+      //Serial.println(NoteToPlay); 
      
       tone(IO_SONG_PIN, NoteToPlay, NoteLength);
      //Play LED full or partial depending on Current note counter
@@ -233,21 +341,14 @@ void PlayNote()
       if(CurrentNoteCounter % 2 == 0)
       {
          LEDVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, LED_VICTOR_PERCENT));
-      }else
+      }
+      else
       {
           LEDVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, LED_VICTOR_PERCENT * 0.4));
       }
       delay(NoteLength); 
       CurrentNoteCounter = CurrentNoteCounter + 1;
    }
-  else
-  {
-     noTone(IO_SONG_PIN);  
-     Serial.println("done"); 
-     delay(1000);
-     CurrentNoteCounter = 1;
-     TurnHasEnded = true;
-  }
 }
 
 int MillisecCounter()
@@ -284,7 +385,7 @@ void RunChainsawAndRail(){
     ChainsawAndRailVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
     return;
   }
-
+  Serial.println("Chainsaw and Rail");
   if (CurrentMillisecReading < ChainsawAndRailChangeStartMillis)
   {
     // new turn - reset change timer
@@ -313,6 +414,7 @@ void RunBorer(){
     BorerVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
     return;
   }
+  Serial.println("Borer");
   BorerVictor.writeMicroseconds(CalcVictor(MOTOR_DIRECTION_FORWARD, BORER_SPEED_PERCENT));  
 }
 
@@ -322,7 +424,7 @@ void RunCrane(){
     CraneVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
     return;
   }
-  
+  Serial.println("Crane");
   if (CurrentMillisecReading < CraneChangeStartMillis)
   {
     // new turn - reset change timer
@@ -354,6 +456,7 @@ void RunCrane(){
 }
 
 void RunDumpTruckAndShop(){
+  Serial.println("Shop and Dumptruck");
   if (CurrentNoteCounter < DumpTruckAndShopStartNote | CurrentNoteCounter > DumpTruckAndShopEndNote)
   {
     DumpTruckAndShopVictor.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
@@ -370,7 +473,7 @@ void SetElevatorPosition()
      ElevatorServo.writeMicroseconds(VICTOR_NEUTRAL_SIGNAL);
      return;
    }
-  
+  Serial.println("Elevator");
   if (CurrentMillisecReading < ElevatorChangeStartMillis)
   {
     // new turn - reset change timer
@@ -387,3 +490,5 @@ void SetElevatorPosition()
   long ElevatorPos = SERVO_MIN_POS + (millisecInThisDirection * ELEVATOR_TURN_PER_MS);
   ElevatorServo.writeMicroseconds(ElevatorPos);
 }
+
+
